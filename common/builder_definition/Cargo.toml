@@ -1,0 +1,18 @@
+[package]
+name = "builder_definition"
+version = "0.1.0"
+authors = ["Sigma Prime <contact@sigmaprime.io>"]
+edition = { workspace = true }
+
+[lib]
+name = "builder_definition"
+path = "src/lib.rs"
+
+[dependencies]
+builder_types = { workspace = true }
+bls = { workspace = true }
+hex = { workspace = true }
+serde = { workspace = true }
+
+[dev-dependencies]
+yaml_serde = { workspace = true }

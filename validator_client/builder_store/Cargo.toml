@@ -10,11 +10,10 @@ path = "src/lib.rs"
 
 [dependencies]
 account_utils = { workspace = true }
-bls = { workspace = true }
+builder_definition = { workspace = true }
 builder_types = { workspace = true }
 filesystem = { workspace = true }
 futures = { workspace = true }
-hex = { workspace = true }
 parking_lot = { workspace = true }
 serde = { workspace = true }
 ssz_types = { workspace = true }

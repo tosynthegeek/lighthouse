@@ -1714,15 +1714,25 @@ dependencies = [
 ]
 
 [[package]]
+name = "builder_definition"
+version = "0.1.0"
+dependencies = [
+ "bls",
+ "builder_types",
+ "hex",
+ "serde",
+ "yaml_serde",
+]
+
+[[package]]
 name = "builder_store"
 version = "0.1.0"
 dependencies = [
  "account_utils",
- "bls",
+ "builder_definition",
  "builder_types",
  "filesystem",
  "futures",
- "hex",
  "parking_lot",
  "serde",
  "ssz_types",

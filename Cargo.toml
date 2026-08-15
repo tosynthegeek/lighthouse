@@ -19,6 +19,7 @@ members = [
     "boot_node",
     "common/account_utils",
     "common/axum_utils",
+    "common/builder_definition",
     "common/builder_types",
     "common/clap_utils",
     "common/deposit_contract",
@@ -121,6 +122,7 @@ bincode = "1"
 bitvec = "1"
 bls = { path = "crypto/bls" }
 builder_client = { path = "beacon_node/builder_client" }
+builder_definition = { path = "common/builder_definition" }
 builder_store = { path = "validator_client/builder_store" }
 builder_types = { path = "common/builder_types" }
 byteorder = "1"

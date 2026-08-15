@@ -1,6 +1,7 @@
-mod builder_definitions;
-use builder_definitions::BuilderConfigFile;
-pub use builder_definitions::{BuilderDefinition, Error};
+mod builder_config_file;
+use builder_config_file::BuilderConfigFile;
+pub use builder_config_file::Error;
+pub use builder_definition::BuilderDefinition;
 use builder_types::{
     BuilderConfig, BuilderEntry, BuilderPubkeys, RequestAuthData, SignedRequestAuth,
 };
