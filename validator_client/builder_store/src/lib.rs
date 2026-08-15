@@ -2,6 +2,7 @@ mod builder_config_file;
 use builder_config_file::BuilderConfigFile;
 pub use builder_config_file::Error;
 pub use builder_definition::BuilderDefinition;
+use builder_definition::BuilderOverride;
 use builder_types::{
     BuilderConfig, BuilderEntry, BuilderPubkeys, RequestAuthData, SignedRequestAuth,
 };
@@ -33,16 +34,23 @@ impl BuilderStore {
     /// Resolve the enabled builders into a wire [`BuilderConfig`], signing each builder's request
     /// auth via `sign`.
     ///
-    /// Per-builder `min_bid`/`builder_boost_factor` inherit the global defaults when unset, and each
-    /// builder's `auth_data` defaults to the UTF-8 bytes of its URL when unset. `sign` receives a
-    /// builder's opaque auth `data` and returns the corresponding `SignedRequestAuth` — in
-    /// practice signed for the current proposer/slot and cached.
+    /// `per_key_override`, when present, takes priority over the VC-wide global config field by
+    /// field: `min_bid`/`builder_boost_factor` fall back to the global value when the override
+    /// doesn't set its own, and `builders` — if the override sets it, even to an empty list — is
+    /// used in place of the global list entirely; if the override doesn't set `builders`, the
+    /// global list is used. A builder's `auth_data` defaults to the UTF-8 bytes of its URL when
+    /// unset. `sign` receives a builder's opaque auth `data` and returns the corresponding
+    /// `SignedRequestAuth` — in practice signed for the current proposer/slot and cached.
     ///
     /// Signing is per-builder: a builder whose auth `sign` fails to produce is logged (with the
     /// returned error) and omitted, so one unsignable builder cannot drop the rest. The returned
     /// config always carries the global policy; its `builders` list holds only the successfully
     /// signed builders, and is empty when no builders are enabled or every one failed to sign.
-    pub async fn builder_config<F, Fut, E>(&self, sign: F) -> BuilderConfig
+    pub async fn builder_config<F, Fut, E>(
+        &self,
+        per_key_override: Option<&BuilderOverride>,
+        sign: F,
+    ) -> BuilderConfig
     where
         F: Fn(RequestAuthData) -> Fut,
         Fut: Future<Output = Result<SignedRequestAuth, E>>,
@@ -52,13 +60,20 @@ impl BuilderStore {
         // so the lock is never held across an `.await`.
         let (definitions, min_bid, builder_boost_factor) = {
             let config = self.config.read();
-            let definitions: Vec<BuilderDefinition> = config
-                .as_slice()
-                .iter()
-                .filter(|d| d.enabled)
-                .cloned()
-                .collect();
-            (definitions, config.min_bid, config.builder_boost_factor)
+ 
+            let definitions: Vec<BuilderDefinition> =
+                match per_key_override.and_then(|o| o.builders.as_ref()) {
+                    Some(builders) => builders.iter().filter(|d| d.enabled).cloned().collect(),
+                    None => config.as_slice().iter().filter(|d| d.enabled).cloned().collect(),
+                };
+            let min_bid = per_key_override
+                .and_then(|o| o.min_bid)
+                .unwrap_or(config.min_bid);
+            let builder_boost_factor = per_key_override
+                .and_then(|o| o.builder_boost_factor)
+                .unwrap_or(config.builder_boost_factor);
+ 
+            (definitions, min_bid, builder_boost_factor)
         };
 
         // Sign every builder's request auth concurrently. With a remote signer each `sign` is a

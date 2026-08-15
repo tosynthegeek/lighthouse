@@ -1,5 +1,6 @@
 use account_utils::validator_definitions::{PasswordStorage, ValidatorDefinition};
 use bls::{AggregateSignature, PublicKeyBytes, Signature};
+use builder_definition::BuilderOverride;
 use builder_types::{RequestAuth, SignedRequestAuth};
 use doppelganger_service::DoppelgangerService;
 use eth2::types::PublishBlockRequest;
@@ -942,6 +943,13 @@ impl<T: SlotClock + 'static, E: EthSpec> ValidatorStore for LighthouseValidatorS
             // If builder boost factor is set to 100 it should be treated as None
             // to prevent unnecessary calculations that could lead to loss of information.
             .filter(|&factor| factor != 100)
+    }
+
+    fn gloas_builder_config(&self, validator_pubkey: &PublicKeyBytes) -> Option<BuilderOverride> {
+        self.validators
+            .read()
+            .gloas_builder_config(validator_pubkey)
+            .cloned()
     }
 
     async fn randao_reveal(

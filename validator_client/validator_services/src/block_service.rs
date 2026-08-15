@@ -499,9 +499,10 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BlockService<S, T> {
             // no builders configured this resolves to an empty list, so the proposal still falls
             // back to a local or p2p payload. Per-builder sign failures are logged and omitted
             // inside `builder_config`, so this never fails the proposal.
+            let per_key_override = self_ref.validator_store.gloas_builder_config(&validator_pubkey);
             let builder_config = self_ref
                 .configured_builders
-                .builder_config(|auth_data| {
+                .builder_config(per_key_override.as_ref(),|auth_data| {
                     self_ref.request_auth_cache.get_or_sign(
                         slot,
                         validator_pubkey,

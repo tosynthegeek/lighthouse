@@ -219,10 +219,11 @@ impl<S: ValidatorStore + 'static, T: SlotClock + 'static> BuilderPreferencesServ
                 // cached, so builders already published for this slot cost only a cache hit.
                 // Per-builder sign failures are logged and omitted inside `builder_config`, so a
                 // fully-failed set just yields an empty `builders` list (nothing to publish).
+                 let per_key_override = self.inner.validator_store.gloas_builder_config(&pubkey);
                 let config = self
                     .inner
                     .configured_builders
-                    .builder_config(|auth_data| {
+                    .builder_config(per_key_override.as_ref(), |auth_data| {
                         self.inner.request_auth_cache.get_or_sign(
                             slot,
                             pubkey,

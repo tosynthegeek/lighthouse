@@ -1,4 +1,5 @@
 use bls::{PublicKeyBytes, Signature};
+use builder_definition::BuilderOverride;
 use builder_types::{RequestAuth, SignedRequestAuth};
 use eth2::types::{FullBlockContents, PublishBlockRequest};
 use futures::Stream;
@@ -122,6 +123,10 @@ pub trait ValidatorStore: Send + Sync {
     ///   local payloads.
     /// - Else return `None` to indicate no preference between builder and local payloads.
     fn determine_builder_boost_factor(&self, validator_pubkey: &PublicKeyBytes) -> Option<u64>;
+
+    /// This validator's Gloas builder configuration override, set via the keymanager API. `None`
+    /// means it follows the validator client's own `builder_definitions.yml` in full.
+    fn gloas_builder_config(&self, validator_pubkey: &PublicKeyBytes) -> Option<BuilderOverride>;
 
     fn randao_reveal(
         &self,
