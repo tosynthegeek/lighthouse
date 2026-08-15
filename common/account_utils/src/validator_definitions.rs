@@ -5,6 +5,7 @@
 
 use crate::{default_keystore_password_path, read_password_string, write_file_via_temporary};
 use bls::PublicKey;
+use builder_definition::BuilderOverride;
 use eth2_keystore::Keystore;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
@@ -160,6 +161,10 @@ pub struct ValidatorDefinition {
     #[serde(default)]
     #[serde(skip_serializing_if = "Option::is_none")]
     pub prefer_builder_proposals: Option<bool>,
+    /// Per-key builder override; falls back to `builder_definitions.yml` when unset.
+    #[serde(default)]
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub gloas_builder_config: Option<BuilderOverride>,
     #[serde(default)]
     pub description: String,
     #[serde(flatten)]
@@ -205,6 +210,7 @@ impl ValidatorDefinition {
             builder_proposals,
             builder_boost_factor,
             prefer_builder_proposals,
+            gloas_builder_config: None,
             signing_definition: SigningDefinition::LocalKeystore {
                 voting_keystore_path,
                 voting_keystore_password_path,
@@ -362,6 +368,7 @@ impl ValidatorDefinitions {
                     builder_proposals: None,
                     builder_boost_factor: None,
                     prefer_builder_proposals: None,
+                    gloas_builder_config: None,
                     signing_definition: SigningDefinition::LocalKeystore {
                         voting_keystore_path,
                         voting_keystore_password_path,
@@ -754,6 +761,7 @@ mod tests {
             builder_proposals: None,
             builder_boost_factor: None,
             prefer_builder_proposals: None,
+            gloas_builder_config: None,
             signing_definition: SigningDefinition::LocalKeystore {
                 voting_keystore_path: PathBuf::new(),
                 voting_keystore_password_path: None,
@@ -786,6 +794,7 @@ mod tests {
             builder_proposals: None,
             builder_boost_factor: None,
             prefer_builder_proposals: None,
+            gloas_builder_config: None,
             signing_definition: SigningDefinition::LocalKeystore {
                 voting_keystore_path: PathBuf::new(),
                 voting_keystore_password_path: None,
@@ -812,6 +821,7 @@ mod tests {
             builder_proposals: None,
             builder_boost_factor: None,
             prefer_builder_proposals: None,
+            gloas_builder_config: None,
             signing_definition: SigningDefinition::LocalKeystore {
                 voting_keystore_path: PathBuf::new(),
                 voting_keystore_password_path: None,
@@ -839,6 +849,7 @@ mod tests {
             builder_proposals: None,
             builder_boost_factor: None,
             prefer_builder_proposals: None,
+            gloas_builder_config: None,
             signing_definition: SigningDefinition::LocalKeystore {
                 voting_keystore_path: PathBuf::new(),
                 voting_keystore_password_path: None,
@@ -856,6 +867,7 @@ mod tests {
             builder_proposals: None,
             builder_boost_factor: None,
             prefer_builder_proposals: None,
+            gloas_builder_config: None,
             signing_definition: SigningDefinition::LocalKeystore {
                 voting_keystore_path: PathBuf::new(),
                 voting_keystore_password_path: None,
@@ -894,6 +906,7 @@ mod tests {
             builder_proposals: None,
             builder_boost_factor: None,
             prefer_builder_proposals: None,
+            gloas_builder_config: None,
             signing_definition: SigningDefinition::LocalKeystore {
                 voting_keystore_path: PathBuf::new(),
                 voting_keystore_password_path: None,
@@ -913,6 +926,7 @@ mod tests {
             builder_proposals: None,
             builder_boost_factor: None,
             prefer_builder_proposals: None,
+            gloas_builder_config: None,
             signing_definition: SigningDefinition::LocalKeystore {
                 voting_keystore_path: PathBuf::new(),
                 voting_keystore_password_path: None,
@@ -939,6 +953,7 @@ mod tests {
             builder_proposals: None,
             builder_boost_factor: None,
             prefer_builder_proposals: None,
+            gloas_builder_config: None,
             signing_definition: SigningDefinition::LocalKeystore {
                 voting_keystore_path: PathBuf::new(),
                 voting_keystore_password_path: None,
@@ -956,6 +971,7 @@ mod tests {
             builder_proposals: None,
             builder_boost_factor: None,
             prefer_builder_proposals: None,
+            gloas_builder_config: None,
             signing_definition: SigningDefinition::LocalKeystore {
                 voting_keystore_path: PathBuf::new(),
                 voting_keystore_password_path: None,

@@ -35,6 +35,7 @@ name = "account_utils"
 version = "0.1.0"
 dependencies = [
  "bls",
+ "builder_definition",
  "eth2_keystore",
  "eth2_wallet",
  "filesystem",
@@ -4803,6 +4804,7 @@ dependencies = [
  "account_utils",
  "bincode",
  "bls",
+ "builder_definition",
  "eth2_keystore",
  "filesystem",
  "lockfile",

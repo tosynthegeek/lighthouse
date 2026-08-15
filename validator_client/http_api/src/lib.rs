@@ -668,6 +668,7 @@ pub async fn serve<T: 'static + SlotClock + Clone, E: EthSpec>(
                                 builder_proposals: web3signer.builder_proposals,
                                 builder_boost_factor: web3signer.builder_boost_factor,
                                 prefer_builder_proposals: web3signer.prefer_builder_proposals,
+                                gloas_builder_config: None,
                                 description: web3signer.description,
                                 signing_definition: SigningDefinition::Web3Signer(
                                     Web3SignerDefinition {

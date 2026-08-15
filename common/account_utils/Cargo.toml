@@ -7,6 +7,7 @@ edition = { workspace = true }
 
 [dependencies]
 bls = { workspace = true }
+builder_definition = { workspace = true }
 eth2_keystore = { workspace = true }
 eth2_wallet = { workspace = true }
 filesystem = { workspace = true }

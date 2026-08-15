@@ -16,6 +16,7 @@ use account_utils::{
     },
 };
 use bls::{Keypair, PublicKey, PublicKeyBytes};
+use builder_definition::{BuilderOverride, validate_builders};
 use eth2_keystore::Keystore;
 use lockfile::{Lockfile, LockfileError};
 use metrics::set_gauge;
@@ -137,6 +138,8 @@ pub enum Error {
     UnableToSaveKeyCache(key_cache::Error),
     UnableToDecryptKeyCache(key_cache::Error),
     UnableToDeletePasswordFile(PathBuf, io::Error),
+    /// The requested builder configuration failed validation.
+    InvalidBuilderConfig(builder_definition::ValidationError),
 }
 
 impl From<LockfileError> for Error {
@@ -154,6 +157,7 @@ pub struct InitializedValidator {
     builder_proposals: Option<bool>,
     builder_boost_factor: Option<u64>,
     prefer_builder_proposals: Option<bool>,
+    gloas_builder_config: Option<BuilderOverride>,
     /// The validators index in `state.validators`, to be updated by an external service.
     index: Option<u64>,
 }
@@ -188,6 +192,10 @@ impl InitializedValidator {
 
     pub fn get_prefer_builder_proposals(&self) -> Option<bool> {
         self.prefer_builder_proposals
+    }
+
+    pub fn get_gloas_builder_config(&self) -> Option<&BuilderOverride> {
+        self.gloas_builder_config.as_ref()
     }
 
     pub fn get_builder_proposals(&self) -> Option<bool> {
@@ -373,6 +381,7 @@ impl InitializedValidator {
             builder_proposals: def.builder_proposals,
             builder_boost_factor: def.builder_boost_factor,
             prefer_builder_proposals: def.prefer_builder_proposals,
+            gloas_builder_config: def.gloas_builder_config,
             index: None,
         })
     }
@@ -893,6 +902,14 @@ impl InitializedValidators {
             .and_then(|v| v.prefer_builder_proposals)
     }
 
+    /// Returns the Gloas builder configuration override for a given public key specified in the
+    /// `ValidatorDefinitions`.
+    pub fn gloas_builder_config(&self, public_key: &PublicKeyBytes) -> Option<&BuilderOverride> {
+        self.validators
+            .get(public_key)
+            .and_then(|v| v.get_gloas_builder_config())
+    }
+
     /// Returns an `Option` of a reference to an `InitializedValidator` for a given public key specified in the
     /// `ValidatorDefinitions`.
     pub fn validator(&self, public_key: &PublicKeyBytes) -> Option<&InitializedValidator> {
@@ -1117,6 +1134,81 @@ impl InitializedValidators {
             .get_mut(&PublicKeyBytes::from(voting_public_key))
         {
             val.gas_limit = None;
+        }
+
+        self.definitions
+            .save(&self.validators_dir)
+            .map_err(Error::UnableToSaveDefinitions)?;
+
+        Ok(())
+    }
+
+    /// Sets this key's Gloas builder configuration.
+    ///
+    /// ## Notes
+    ///
+    /// Validates `builders` (if present) before mutating; a failed validation leaves both
+    /// in-memory and on-disk state unchanged.
+    ///
+    /// Saves the `ValidatorDefinitions` to file, even if no definitions were changed.
+    pub fn set_validator_builders(
+        &mut self,
+        voting_public_key: &PublicKey,
+        builder_config: BuilderOverride,
+    ) -> Result<(), Error> {
+        if let Some(builders) = &builder_config.builders {
+            validate_builders(builders).map_err(Error::InvalidBuilderConfig)?;
+        }
+
+        if let Some(def) = self
+            .definitions
+            .as_mut_slice()
+            .iter_mut()
+            .find(|def| def.voting_public_key == *voting_public_key)
+        {
+            def.gloas_builder_config = Some(builder_config.clone());
+        }
+
+        if let Some(val) = self
+            .validators
+            .get_mut(&PublicKeyBytes::from(voting_public_key))
+        {
+            val.gloas_builder_config = Some(builder_config);
+        }
+
+        self.definitions
+            .save(&self.validators_dir)
+            .map_err(Error::UnableToSaveDefinitions)?;
+
+        Ok(())
+    }
+
+    /// Removes this key's Gloas builder configuration.
+    ///
+    /// ## Notes
+    ///
+    /// The key then follows the validator client's own `builder_definitions.yml` in full, as if
+    /// never configured.
+    ///
+    /// Saves the `ValidatorDefinitions` to file, even if no definitions were changed.
+    pub fn delete_validator_builders(
+        &mut self,
+        voting_public_key: &PublicKey,
+    ) -> Result<(), Error> {
+        if let Some(def) = self
+            .definitions
+            .as_mut_slice()
+            .iter_mut()
+            .find(|def| def.voting_public_key == *voting_public_key)
+        {
+            def.gloas_builder_config = None;
+        }
+
+        if let Some(val) = self
+            .validators
+            .get_mut(&PublicKeyBytes::from(voting_public_key))
+        {
+            val.gloas_builder_config = None;
         }
 
         self.definitions

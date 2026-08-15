@@ -8,6 +8,7 @@ authors = ["Sigma Prime <contact@sigmaprime.io>"]
 account_utils = { workspace = true }
 bincode = { workspace = true }
 bls = { workspace = true }
+builder_definition = { workspace = true }
 eth2_keystore = { workspace = true }
 filesystem = { workspace = true }
 lockfile = { workspace = true }
