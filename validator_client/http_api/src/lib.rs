@@ -28,7 +28,9 @@ use create_validator::{
 };
 use directory::{DEFAULT_HARDCODED_NETWORK, DEFAULT_ROOT_DIR, DEFAULT_VALIDATOR_DIR};
 use eth2::lighthouse_vc::{
-    std_types::{AuthResponse, GetFeeRecipientResponse, GetGasLimitResponse},
+    std_types::{
+        AuthResponse, BuilderConfigOverride, GetFeeRecipientResponse, GetGasLimitResponse,
+    },
     types::{
         self as api_types, GenericResponse, GetGraffitiResponse, Graffiti, SetGraffitiRequest,
         UpdateCandidatesRequest, UpdateCandidatesResponse,
@@ -212,6 +214,17 @@ pub async fn serve<T: 'static + SlotClock + Clone, E: EthSpec>(
             validator_store.ok_or_else(|| {
                 warp_utils::reject::custom_not_found(
                     "validator store is not initialized.".to_string(),
+                )
+            })
+        });
+
+    let inner_configured_builders = ctx.configured_builders.clone();
+    let configured_builders_filter = warp::any()
+        .map(move || inner_configured_builders.clone())
+        .and_then(|configured_builders: Option<_>| async move {
+            configured_builders.ok_or_else(|| {
+                warp_utils::reject::custom_not_found(
+                    "builder store is not initialized.".to_string(),
                 )
             })
         });
@@ -1127,6 +1140,125 @@ pub async fn serve<T: 'static + SlotClock + Clone, E: EthSpec>(
         )
         .map(|reply| warp::reply::with_status(reply, warp::http::StatusCode::NO_CONTENT));
 
+    // GET /eth/v1/validator/{pubkey}/builders
+    let get_builders = eth_v1
+        .and(warp::path("validator"))
+        .and(warp::path::param::<PublicKey>())
+        .and(warp::path("builders"))
+        .and(warp::path::end())
+        .and(validator_store_filter.clone())
+        .and(configured_builders_filter.clone())
+        .then(
+            |validator_pubkey: PublicKey,
+             validator_store: Arc<LighthouseValidatorStore<T, E>>,
+             configured_builders: BuilderStore| {
+                blocking_json_task(move || {
+                    if validator_store
+                        .initialized_validators()
+                        .read()
+                        .is_enabled(&validator_pubkey)
+                        .is_none()
+                    {
+                        return Err(warp_utils::reject::custom_not_found(format!(
+                            "no validator found with pubkey {:?}",
+                            validator_pubkey
+                        )));
+                    }
+                    let stored = validator_store
+                        .initialized_validators()
+                        .read()
+                        .gloas_builder_config(&PublicKeyBytes::from(&validator_pubkey))
+                        .cloned();
+                    let global = configured_builders.global_config();
+                    Ok(GenericResponse::from(builders::builder_override_to_wire(
+                        stored.as_ref(),
+                        &global,
+                    )))
+                })
+            },
+        );
+
+    // POST /eth/v1/validator/{pubkey}/builders
+    let post_builders = eth_v1
+        .and(warp::path("validator"))
+        .and(warp::path::param::<PublicKey>())
+        .and(warp::path("builders"))
+        .and(warp::body::json())
+        .and(warp::path::end())
+        .and(validator_store_filter.clone())
+        .and(configured_builders_filter.clone())
+        .then(
+            |validator_pubkey: PublicKey,
+             request: BuilderConfigOverride,
+             validator_store: Arc<LighthouseValidatorStore<T, E>>,
+             configured_builders: BuilderStore| {
+                blocking_json_task(move || {
+                    if validator_store
+                        .initialized_validators()
+                        .read()
+                        .is_enabled(&validator_pubkey)
+                        .is_none()
+                    {
+                        return Err(warp_utils::reject::custom_not_found(format!(
+                            "no validator found with pubkey {:?}",
+                            validator_pubkey
+                        )));
+                    }
+                    let global = configured_builders.global_config();
+                    let builder_override =
+                        builders::builder_override_from_wire(request, &global)
+                            .map_err(|e| warp_utils::reject::custom_bad_request(e.to_string()))?;
+                    validator_store
+                        .initialized_validators()
+                        .write()
+                        .set_validator_builders(&validator_pubkey, builder_override)
+                        .map_err(|e| {
+                            warp_utils::reject::custom_server_error(format!(
+                                "Error persisting builder configuration: {:?}",
+                                e
+                            ))
+                        })
+                })
+            },
+        )
+        .map(|reply| warp::reply::with_status(reply, warp::http::StatusCode::ACCEPTED));
+
+    // DELETE /eth/v1/validator/{pubkey}/builders
+    let delete_builders = eth_v1
+        .and(warp::path("validator"))
+        .and(warp::path::param::<PublicKey>())
+        .and(warp::path("builders"))
+        .and(warp::path::end())
+        .and(validator_store_filter.clone())
+        .then(
+            |validator_pubkey: PublicKey, validator_store: Arc<LighthouseValidatorStore<T, E>>| {
+                blocking_json_task(move || {
+                    if validator_store
+                        .initialized_validators()
+                        .read()
+                        .is_enabled(&validator_pubkey)
+                        .is_none()
+                    {
+                        return Err(warp_utils::reject::custom_not_found(format!(
+                            "no validator found with pubkey {:?}",
+                            validator_pubkey
+                        )));
+                    }
+                    validator_store
+                        .initialized_validators()
+                        .write()
+                        .delete_validator_builders(&validator_pubkey)
+                        .map_err(|e| {
+                            warp_utils::reject::custom_server_error(format!(
+                                "Error persisting builder configuration removal: {:?}",
+                                e
+                            ))
+                        })
+                })
+            },
+        )
+        .map(|reply| warp::reply::with_status(reply, warp::http::StatusCode::NO_CONTENT));
+
     // POST /eth/v1/validator/{pubkey}/voluntary_exit
     let post_validators_voluntary_exits = eth_v1
         .and(warp::path("validator"))
@@ -1365,6 +1497,7 @@ pub async fn serve<T: 'static + SlotClock + Clone, E: EthSpec>(
                         .or(get_lighthouse_beacon_health)
                         .or(get_fee_recipient)
                         .or(get_gas_limit)
+                        .or(get_builders)
                         .or(get_graffiti)
                         .or(get_std_keystores)
                         .or(get_std_remotekeys)
@@ -1378,6 +1511,7 @@ pub async fn serve<T: 'static + SlotClock + Clone, E: EthSpec>(
                         .or(post_validators_voluntary_exits)
                         .or(post_fee_recipient)
                         .or(post_gas_limit)
+                        .or(post_builders)
                         .or(post_std_keystores)
                         .or(post_std_remotekeys)
                         .or(post_graffiti)
@@ -1390,6 +1524,7 @@ pub async fn serve<T: 'static + SlotClock + Clone, E: EthSpec>(
                     delete_lighthouse_keystores
                         .or(delete_fee_recipient)
                         .or(delete_gas_limit)
+                        .or(delete_builders)
                         .or(delete_std_keystores)
                         .or(delete_std_remotekeys)
                         .or(delete_graffiti)

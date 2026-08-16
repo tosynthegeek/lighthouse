@@ -14,6 +14,22 @@ pub enum ConversionError {
     NoMatchingGlobalBuilder(String),
 }
 
+impl std::fmt::Display for ConversionError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            ConversionError::InvalidUrl(url) => write!(f, "invalid builder url: {url}"),
+            ConversionError::InvalidAuthData(url) => {
+                write!(f, "invalid auth_data for builder {url}")
+            }
+            ConversionError::NoMatchingGlobalBuilder(url) => write!(
+                f,
+                "max_execution_payment omitted for {url}, and no matching builder in \
+                 builder_definitions.yml to inherit it from"
+            ),
+        }
+    }
+}
+
 /// Convert a `POST .../builders` request body into the internal `BuilderOverride`, resolving each
 /// entry's omitted `max_execution_payment` against `global.builders`.
 pub fn builder_override_from_wire(

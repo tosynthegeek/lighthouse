@@ -518,6 +518,18 @@ impl ValidatorClientHttpClient {
         Ok(url)
     }
 
+    fn make_builders_url(&self, pubkey: &PublicKeyBytes) -> Result<Url, Error> {
+        let mut url = self.server.expose_full().clone();
+        url.path_segments_mut()
+            .map_err(|()| Error::InvalidUrl(self.server.clone()))?
+            .push("eth")
+            .push("v1")
+            .push("validator")
+            .push(&pubkey.to_string())
+            .push("builders");
+        Ok(url)
+    }
+
     /// `GET lighthouse/auth`
     pub async fn get_auth(&self) -> Result<AuthResponse, Error> {
         let mut url = self.server.expose_full().clone();
@@ -627,6 +639,33 @@ impl ValidatorClientHttpClient {
     /// `DELETE /eth/v1/validator/{pubkey}/gas_limit`
     pub async fn delete_gas_limit(&self, pubkey: &PublicKeyBytes) -> Result<Response, Error> {
         let url = self.make_gas_limit_url(pubkey)?;
+        self.delete_with_raw_response(url, &()).await
+    }
+
+    /// `GET /eth/v1/validator/{pubkey}/builders`
+    pub async fn get_builders(
+        &self,
+        pubkey: &PublicKeyBytes,
+    ) -> Result<BuilderConfigOverride, Error> {
+        let url = self.make_builders_url(pubkey)?;
+        self.get(url)
+            .await
+            .map(|generic: GenericResponse<BuilderConfigOverride>| generic.data)
+    }
+
+    /// `POST /eth/v1/validator/{pubkey}/builders`
+    pub async fn post_builders(
+        &self,
+        pubkey: &PublicKeyBytes,
+        req: &BuilderConfigOverride,
+    ) -> Result<Response, Error> {
+        let url = self.make_builders_url(pubkey)?;
+        self.post_with_raw_response(url, req).await
+    }
+
+    /// `DELETE /eth/v1/validator/{pubkey}/builders`
+    pub async fn delete_builders(&self, pubkey: &PublicKeyBytes) -> Result<Response, Error> {
+        let url = self.make_builders_url(pubkey)?;
         self.delete_with_raw_response(url, &()).await
     }
 
