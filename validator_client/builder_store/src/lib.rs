@@ -19,6 +19,14 @@ pub struct BuilderStore {
     validators_dir: PathBuf,
 }
 
+/// A snapshot of the VC-wide global builder policy — the fallback for any field a per-key
+/// `BuilderOverride` doesn't set, and the source list for `builders: None` overrides.
+pub struct GlobalBuilderConfig {
+    pub min_bid: u64,
+    pub builder_boost_factor: u64,
+    pub builders: Vec<BuilderDefinition>,
+}
+
 impl BuilderStore {
     pub fn open_or_create<P: AsRef<Path>>(validators_dir: P) -> Result<Self, Error> {
         let validators_dir = validators_dir.as_ref().to_path_buf();
@@ -29,6 +37,15 @@ impl BuilderStore {
             )?)),
             validators_dir,
         })
+    }
+
+    pub fn global_config(&self) -> GlobalBuilderConfig {
+        let config = self.config.read();
+        GlobalBuilderConfig {
+            min_bid: config.min_bid,
+            builder_boost_factor: config.builder_boost_factor,
+            builders: config.as_slice().to_vec(),
+        }
     }
 
     /// Resolve the enabled builders into a wire [`BuilderConfig`], signing each builder's request
@@ -60,11 +77,16 @@ impl BuilderStore {
         // so the lock is never held across an `.await`.
         let (definitions, min_bid, builder_boost_factor) = {
             let config = self.config.read();
- 
+
             let definitions: Vec<BuilderDefinition> =
                 match per_key_override.and_then(|o| o.builders.as_ref()) {
                     Some(builders) => builders.iter().filter(|d| d.enabled).cloned().collect(),
-                    None => config.as_slice().iter().filter(|d| d.enabled).cloned().collect(),
+                    None => config
+                        .as_slice()
+                        .iter()
+                        .filter(|d| d.enabled)
+                        .cloned()
+                        .collect(),
                 };
             let min_bid = per_key_override
                 .and_then(|o| o.min_bid)
@@ -72,7 +94,7 @@ impl BuilderStore {
             let builder_boost_factor = per_key_override
                 .and_then(|o| o.builder_boost_factor)
                 .unwrap_or(config.builder_boost_factor);
- 
+
             (definitions, min_bid, builder_boost_factor)
         };
 

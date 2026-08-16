@@ -5,6 +5,7 @@ use account_utils::{
     eth2_wallet::WalletBuilder, mnemonic_from_phrase, random_mnemonic, random_password,
 };
 use bls::Keypair;
+use builder_store::BuilderStore;
 use deposit_contract::decode_eth1_tx_data;
 use doppelganger_service::DoppelgangerService;
 use eth2::{
@@ -136,6 +137,7 @@ impl ApiTester {
             validator_dir: Some(validator_dir.path().into()),
             secrets_dir: Some(secrets_dir.path().into()),
             validator_store: Some(validator_store.clone()),
+            configured_builders: Some(BuilderStore::open_or_create(validator_dir.path()).unwrap()),
             graffiti_file: None,
             graffiti_flag: Some(Graffiti::default()),
             spec: spec.clone(),

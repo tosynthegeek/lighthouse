@@ -2,6 +2,7 @@
 pub mod test_utils;
 
 mod api_secret;
+mod builders;
 mod create_signed_voluntary_exit;
 mod create_validator;
 mod graffiti;
@@ -19,6 +20,7 @@ use axum::Router;
 use axum_utils::server::Server;
 use beacon_node_fallback::CandidateInfo;
 use bls::{PublicKey, PublicKeyBytes};
+use builder_store::BuilderStore;
 use core::convert::Infallible;
 use create_signed_voluntary_exit::create_signed_voluntary_exit;
 use create_validator::{
@@ -87,6 +89,7 @@ pub struct Context<T: SlotClock, E> {
     pub api_secret: ApiSecret,
     pub block_service: Option<BlockService<LighthouseValidatorStore<T, E>, T>>,
     pub validator_store: Option<Arc<LighthouseValidatorStore<T, E>>>,
+    pub configured_builders: Option<BuilderStore>,
     pub validator_dir: Option<PathBuf>,
     pub secrets_dir: Option<PathBuf>,
     pub graffiti_file: Option<GraffitiFile>,

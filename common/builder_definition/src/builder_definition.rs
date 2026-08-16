@@ -59,7 +59,7 @@ pub struct BuilderOverride {
     /// This key's default `builder_boost_factor`. Falls back to the VC's global value when unset.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub builder_boost_factor: Option<u64>,
-    /// The builders this key sources bids from. 
+    /// The builders this key sources bids from.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub builders: Option<Vec<BuilderDefinition>>,
 }

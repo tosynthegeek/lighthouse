@@ -12,6 +12,7 @@ use account_utils::{
     random_password_string, validator_definitions::ValidatorDefinitions,
 };
 use bls::{Keypair, PublicKeyBytes};
+use builder_store::BuilderStore;
 use deposit_contract::decode_eth1_tx_data;
 use eth2::{
     Error as ApiError,
@@ -115,6 +116,7 @@ impl ApiTester {
             api_secret,
             block_service: None,
             validator_dir: Some(validator_dir.path().into()),
+            configured_builders: Some(BuilderStore::open_or_create(validator_dir.path()).unwrap()),
             secrets_dir: Some(secrets_dir.path().into()),
             validator_store: Some(validator_store.clone()),
             graffiti_file: None,
